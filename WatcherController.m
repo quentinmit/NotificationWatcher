@@ -15,6 +15,19 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 	return attrDict;
 }
 
+@implementation NotificationWrapper
+- (id)initWithNotification:(NSNotification *)aNotification {
+    if (self = [super init]) {
+        _notification = [aNotification copy];
+        _date = [NSDate date];
+    }
+    return self;
+}
++ (NotificationWrapper *) wrapperWithNotification:(NSNotification *)aNotification {
+    return [[[self alloc] initWithNotification:aNotification] autorelease];
+}
+@end
+
 @interface WatcherController ()
 - (NSArray *)filteredDistNotificationsWithString:(NSString *)filterValue;
 - (NSArray *)filteredWorkspaceNotificationsWithString:(NSString *)filterValue;
@@ -81,7 +94,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 	NSRect bounds = [distNotificationList bounds];
 	BOOL atBottom = ((visibleRect.origin.y + visibleRect.size.height) ==
 						(bounds.origin.y + bounds.size.height));
-	[distNotifications addObject:[[aNotification copy] autorelease]];
+    [distNotifications addObject:[NotificationWrapper wrapperWithNotification:aNotification]];
 	[distNotificationList noteNumberOfRowsChanged];
 	if (atBottom) {
 		[distNotificationList scrollRowToVisible:[distNotificationList numberOfRows] - 1];
@@ -93,7 +106,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 	NSRect bounds = [wsNotificationList bounds];
 	BOOL atBottom = ((visibleRect.origin.y + visibleRect.size.height) ==
 					 (bounds.origin.y + bounds.size.height));
-	[wsNotifications addObject:[[aNotification copy] autorelease]];
+	[wsNotifications addObject:[NotificationWrapper wrapperWithNotification:aNotification]];
 	[wsNotificationList noteNumberOfRowsChanged];
 	if (atBottom) {
 		[wsNotificationList scrollRowToVisible:[wsNotificationList numberOfRows] - 1];
@@ -108,7 +121,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 	selectedWSNotification = nil;
 	[savedRowHeights release];
 	savedRowHeights = nil;
-	NSNotification **targetVar;
+	NotificationWrapper **targetVar;
 	NSArray *targetList;
 	if (sender == distNotificationList) {
 		targetVar = &selectedDistNotification;
@@ -124,7 +137,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 	if (*targetVar == nil) {
 		[objectText setStringValue:@""];
 	} else {
-		id obj = [*targetVar object];
+		id obj = [[*targetVar notification] object];
 		NSMutableAttributedString *objStr = nil;
 		if (obj == nil) {
 			NSFont *aFont = [objectText font];
@@ -170,7 +183,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 - (NSArray *)filteredDistNotificationsWithString:(NSString *)filterValue {
 	NSPredicate *filterPredicate = [NSPredicate predicateWithValue:YES];
 	if ([filterValue length] > 0) {
-		filterPredicate = [NSPredicate predicateWithFormat:@"name CONTAINS[c] %@ OR (object CONTAINS[c] %@)", filterValue, filterValue];
+		filterPredicate = [NSPredicate predicateWithFormat:@"notification.name CONTAINS[c] %@ OR (notification.object CONTAINS[c] %@)", filterValue, filterValue];
 	}
 	return [distNotifications filteredArrayUsingPredicate:filterPredicate];
 }
@@ -178,7 +191,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 - (NSArray *)filteredWorkspaceNotificationsWithString:(NSString *)filterValue {
 	NSPredicate *filterPredicate = [NSPredicate predicateWithValue:YES];
 	if ([filterValue length] > 0) {
-		filterPredicate = [NSPredicate predicateWithFormat:@"name CONTAINS[c] %@", filterValue];	
+		filterPredicate = [NSPredicate predicateWithFormat:@"notification.name CONTAINS[c] %@", filterValue];
 	}
 	return [wsNotifications filteredArrayUsingPredicate:filterPredicate];
 }
@@ -193,9 +206,9 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 		if (selectedDistNotification == nil && selectedWSNotification == nil) {
 			return 0;
 		} else if (selectedDistNotification == nil) {
-			return [[selectedWSNotification userInfo] count];
+			return [[[selectedWSNotification notification] userInfo] count];
 		} else {
-			return [[selectedDistNotification userInfo] count];
+			return [[[selectedDistNotification notification] userInfo] count];
 		}
 	}
 }
@@ -203,23 +216,25 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	NSString *filterValue = [searchField stringValue];
 	if (aTableView == distNotificationList) {
-		return [[[self filteredDistNotificationsWithString:filterValue] objectAtIndex:rowIndex] name];
+        NotificationWrapper *obj = [[self filteredDistNotificationsWithString:filterValue] objectAtIndex:rowIndex];
+		return [[obj notification] name];
 	} else if (aTableView == wsNotificationList) {
-		return [[[self filteredWorkspaceNotificationsWithString:filterValue] objectAtIndex:rowIndex] name];
+        NotificationWrapper *obj = [[self filteredWorkspaceNotificationsWithString:filterValue] objectAtIndex:rowIndex];
+		return [[obj notification] name];
 	} else {
 		if (selectedDistNotification == nil && selectedWSNotification == nil) {
 			return @"";
 		} else {
-			NSNotification **targetVar;
+			NotificationWrapper **targetVar;
 			if (selectedDistNotification == nil) {
 				targetVar = &selectedWSNotification;
 			} else {
 				targetVar = &selectedDistNotification;
 			}
 			if ([[aTableColumn identifier] isEqualToString:@"key"]) {
-				return [[[*targetVar userInfo] allKeys] objectAtIndex:rowIndex];
+				return [[[[*targetVar notification] userInfo] allKeys] objectAtIndex:rowIndex];
 			} else {
-				return [[[[*targetVar userInfo] allValues] objectAtIndex:rowIndex] description];
+				return [[[[[*targetVar notification] userInfo] allValues] objectAtIndex:rowIndex] description];
 			}
 		}
 	}
@@ -250,7 +265,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 		return 14;
 	}
 
-	NSNotification *targetVar;
+	NotificationWrapper *targetVar;
 	if (selectedDistNotification == nil) {
 		targetVar = selectedWSNotification;
 	} else {
@@ -261,7 +276,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 		savedRowHeights = [[NSMutableArray alloc] init];
 	}
 	if ((NSInteger)[savedRowHeights count] < row + 1) {
-		NSString *str = [[[[targetVar userInfo] allValues] objectAtIndex:row] description];
+		NSString *str = [[[[[targetVar notification] userInfo] allValues] objectAtIndex:row] description];
 		
 		NSSize size = [str sizeWithAttributes:[NSDictionary dictionaryWithObject:[NSFont fontWithName:@"Lucida Grande" size:11] forKey:NSFontAttributeName]];
 		[savedRowHeights insertObject:[NSNumber numberWithFloat:size.height] atIndex:row];

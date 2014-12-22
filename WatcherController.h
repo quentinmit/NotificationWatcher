@@ -2,6 +2,16 @@
 
 #import <Cocoa/Cocoa.h>
 
+@interface NotificationWrapper : NSObject
+
+@property(nonatomic,readonly) NSNotification *notification;
+@property(nonatomic,readonly) NSDate *date;
+
+- (id)initWithNotification:(NSNotification *)aNotification;
++ (NotificationWrapper *) wrapperWithNotification:(NSNotification *)aNotification;
+
+@end
+
 @interface WatcherController : NSObject {
 	IBOutlet NSWindow *prefsWindow;
     IBOutlet NSTextField *objectText;
@@ -11,8 +21,8 @@
 	IBOutlet NSSearchField *searchField;
     NSMutableArray *distNotifications;
     NSMutableArray *wsNotifications;
-    NSNotification *selectedDistNotification;
-    NSNotification *selectedWSNotification;
+    NotificationWrapper *selectedDistNotification;
+    NotificationWrapper *selectedWSNotification;
 	NSMutableArray *savedRowHeights;
 }
 - (IBAction)clearNotifications:(id)sender;
