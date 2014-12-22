@@ -19,7 +19,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 - (id)initWithNotification:(NSNotification *)aNotification {
     if (self = [super init]) {
         _notification = [aNotification copy];
-        _date = [NSDate date];
+        _date = [[NSDate date] retain];
     }
     return self;
 }
@@ -48,6 +48,9 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 		NSMutableDictionary *defaults = [NSMutableDictionary dictionary];
 		[defaults setObject:@"NO" forKey:kHideProcessSwitchNotificationPref];
 		[[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
+        dateFormatter = [[NSDateFormatter alloc] init];
+        [dateFormatter setDateStyle:NSDateFormatterNoStyle];
+        [dateFormatter setTimeStyle:NSDateFormatterMediumStyle];
 	}
 	return self;
 }
@@ -68,6 +71,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 	[selectedWSNotification release];
 	[distNotifications release];
 	[wsNotifications release];
+    [dateFormatter release];
 	[super dealloc];
 }
 
@@ -215,12 +219,19 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	NSString *filterValue = [searchField stringValue];
-	if (aTableView == distNotificationList) {
-        NotificationWrapper *obj = [[self filteredDistNotificationsWithString:filterValue] objectAtIndex:rowIndex];
-		return [[obj notification] name];
-	} else if (aTableView == wsNotificationList) {
-        NotificationWrapper *obj = [[self filteredWorkspaceNotificationsWithString:filterValue] objectAtIndex:rowIndex];
-		return [[obj notification] name];
+    NSString *identifier = [aTableColumn identifier];
+    if (aTableView == distNotificationList || aTableView == wsNotificationList) {
+        NotificationWrapper *obj;
+        if (aTableView == distNotificationList) {
+            obj = [[self filteredDistNotificationsWithString:filterValue] objectAtIndex:rowIndex];
+        } else {
+            obj = [[self filteredWorkspaceNotificationsWithString:filterValue] objectAtIndex:rowIndex];
+        }
+        if ([identifier isEqualToString:@"date"]) {
+            return [dateFormatter stringFromDate:[obj date]];
+        } else {
+            return [[obj notification] name];
+        }
 	} else {
 		if (selectedDistNotification == nil && selectedWSNotification == nil) {
 			return @"";
@@ -231,7 +242,7 @@ static NSDictionary *italicAttributesForFont(NSFont *aFont) {
 			} else {
 				targetVar = &selectedDistNotification;
 			}
-			if ([[aTableColumn identifier] isEqualToString:@"key"]) {
+			if ([identifier isEqualToString:@"key"]) {
 				return [[[[*targetVar notification] userInfo] allKeys] objectAtIndex:rowIndex];
 			} else {
 				return [[[[[*targetVar notification] userInfo] allValues] objectAtIndex:rowIndex] description];

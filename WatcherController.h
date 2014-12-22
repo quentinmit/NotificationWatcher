@@ -24,6 +24,7 @@
     NotificationWrapper *selectedDistNotification;
     NotificationWrapper *selectedWSNotification;
 	NSMutableArray *savedRowHeights;
+    NSDateFormatter *dateFormatter;
 }
 - (IBAction)clearNotifications:(id)sender;
 - (IBAction)showPrefs:(id)sender;
